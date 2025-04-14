@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>城市建筑密度分析系统</title>
+
+  <style>
+    /* 保持原有样式不变 */
+    html, body {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: 60px auto 80px;
+    }
+
+    .custom-header {
+      background: linear-gradient(135deg, #2c3e50, #3498db);
+      color: white;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+    }
+
+    .basemap-panel {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-top: 1px solid #dee2e6;
+    }
+
+    /* 新增定位按钮样式 */
+    .locate-container {
+      position: absolute;
+      top: 100px;
+      left: 20px;
+      z-index: 100;
+    }
+  </style>
+
+  <script type="module" src="https://js.arcgis.com/calcite-components/3.0.3/calcite.esm.js"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.32/"></script>
+  <script type="module" src="https://js.arcgis.com/map-components/4.32/arcgis-map-components.esm.js"></script>
+</head>
+
+<body>
+  <div class="custom-header">
+    <h2 style="margin:0 15px">城市建筑分析系统</h2>
+    <arcgis-search position="top-bar"></arcgis-search>
+  </div>
+
+  <arcgis-map item-id="237b9584339446a0b56317b5962a4971">
+    <arcgis-zoom position="top-left"></arcgis-zoom>
+    <arcgis-legend position="bottom-right"></arcgis-legend>
+    <arcgis-scale-bar position="bottom-left"></arcgis-scale-bar>
+    <arcgis-layer-list position="top-right"></arcgis-layer-list>
+    
+    <!-- 新增定位控件 -->
+    <div class="locate-container">
+      <calcite-button icon-start="navigation" onclick="zoomToDensityLayer()">
+        定位建筑密度
+      </calcite-button>
+    </div>
+  </arcgis-map>
+
+  <div class="basemap-panel">
+    <calcite-button onclick="switchBasemap('arcgis-streets')">街道图</calcite-button>
+    <calcite-button onclick="switchBasemap('arcgis-topographic')">地形图</calcite-button>
+    <calcite-button onclick="switchBasemap('arcgis-imagery')">卫星图</calcite-button>
+  </div>
+
+  <script>
+    let densityLayer; // 保存图层引用
+
+    require(["esri/layers/FeatureLayer", "esri/geometry/Extent"], 
+    (FeatureLayer, Extent) => {
+      const arcgisMap = document.querySelector("arcgis-map");
+      
+      arcgisMap.addEventListener("arcgisViewReadyChange", async () => {
+        try {
+          // 创建并添加建筑密度图层
+          densityLayer = new FeatureLayer({
+            url: "https://www.geosceneonline.cn/server/rest/services/Hosted/建筑密度/FeatureServer/0",
+            popupTemplate: {
+              title: "建筑密度信息",
+              content: "密度值: {density}"
+            }
+          });
+
+          await arcgisMap.map.add(densityLayer);
+          
+          // 自动定位到数据范围
+          const layerExtent = await densityLayer.queryExtent();
+          if (layerExtent?.extent) {
+            arcgisMap.view.goTo({
+              target: layerExtent.extent,
+              padding: 100,
+              duration: 2000
+            });
+          }
+        } catch (error) {
+          console.error("图层加载失败:", error);
+        }
+      });
+    });
+
+    // 底图切换函数（保持原样）
+    function switchBasemap(basemapId) {
+      document.querySelector("arcgis-map").basemap = basemapId;
+    }
+
+    // 新增定位功能
+    async function zoomToDensityLayer() {
+      try {
+        const view = document.querySelector("arcgis-map").view;
+        const extent = await densityLayer.queryExtent();
+        await view.goTo({
+          target: extent.extent,
+          padding: 150,
+          duration: 3000
+        });
+        view.zoom -= 0.5;
+      } catch (error) {
+        console.error("定位失败:", error);
+      }
+    }
+  </script>
+</body>
+</html>
